@@ -105,4 +105,4 @@ The preference bundle writes these values, and the tweak reads them during Sprin
 
 ## License
 
-See `LICENSE`.
+GPL-3.0. See `LICENSE`.
