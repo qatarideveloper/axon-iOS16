@@ -24,20 +24,20 @@ jobs:
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           bash -c "$(curl -fsSL https://raw.githubusercontent.com/roothide/theos/master/bin/install-theos)"
 
-      - name: Get iOS 14.4 SDK
+      - name: Get iOS 14.5 SDK
         run: |
           mkdir -p "$THEOS/sdks"
-          if [ ! -d "$THEOS/sdks/iPhoneOS14.4.sdk" ]; then
+          if [ ! -d "$THEOS/sdks/iPhoneOS14.5.sdk" ]; then
             git clone -n --depth 1 --filter=tree:0 https://github.com/theos/sdks.git /tmp/sdks
             cd /tmp/sdks
-            git sparse-checkout set --no-cone iPhoneOS14.4.sdk
+            git sparse-checkout set --no-cone iPhoneOS14.5.sdk
             git checkout
-            cp -a iPhoneOS14.4.sdk "$THEOS/sdks/"
+            cp -a iPhoneOS14.5.sdk "$THEOS/sdks/"
           fi
           ls "$THEOS/sdks"
 
       - name: Build package
-        run: make clean package FINALPACKAGE=1
+        run: make clean package FINALPACKAGE=1 TARGET=iphone:clang:14.5:14.0
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
