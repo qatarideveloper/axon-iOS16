@@ -24,6 +24,16 @@ jobs:
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           bash -c "$(curl -fsSL https://raw.githubusercontent.com/roothide/theos/master/bin/install-theos)"
 
+      - name: Get iOS SDKs
+        run: |
+          git clone -n --depth 1 --filter=tree:0 https://github.com/theos/sdks.git /tmp/sdks
+          cd /tmp/sdks
+          git sparse-checkout set --no-cone iPhoneOS14.4.sdk iPhoneOS16.5.sdk
+          git checkout
+          mkdir -p "$THEOS/sdks"
+          mv iPhoneOS*.sdk "$THEOS/sdks/"
+          ls "$THEOS/sdks"
+
       - name: Build package
         run: make clean package FINALPACKAGE=1
 
