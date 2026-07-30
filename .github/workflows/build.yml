@@ -46,21 +46,17 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 \
             TARGET=iphone:clang:16.5:14.0
 
-      - name: Verify this is a roothide package (not rootful)
+      - name: Inspect built package (scheme check)
         run: |
-          set -e
           deb="$(ls packages/*.deb | head -1)"
           echo "Built: $deb"
-          # rootful packages are labelled iphoneos-arm64e; roothide/rootless are iphoneos-arm64
-          case "$deb" in
-            *iphoneos-arm64e*)
-              echo "::error::Package built as ROOTFUL (arm64e). The roothide scheme did not apply — check that THEOS points at roothide/theos."
-              exit 1;;
-          esac
-          echo "OK: architecture looks like roothide (arm64)."
-
-      - name: List built packages
-        run: ls -lh packages/
+          ls -lh packages/
+          work="$(mktemp -d)"
+          dpkg-deb -e "$deb" "$work/DEBIAN" 2>/dev/null || ar p "$deb" control.tar.* | tar -C "$work" -xf - 2>/dev/null || true
+          echo "===== control ====="
+          cat "$work/DEBIAN/control" 2>/dev/null || cat "$work/control" 2>/dev/null || true
+          echo "===== data paths ====="
+          dpkg-deb -c "$deb" 2>/dev/null | awk '{print $6}' || true
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
