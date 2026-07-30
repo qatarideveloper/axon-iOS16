@@ -3,44 +3,55 @@ name: Build Axon (roothide)
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ "**" ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-14
+    env:
+      THEOS: ${{ github.workspace }}/theos
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential fakeroot git perl curl unzip zip rsync
+          brew install ldid make xz
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
 
-      - name: Install roothide Theos
+      - name: Set up roothide Theos
         run: |
-          export THEOS=${{ github.workspace }}/theos
-          echo "THEOS=$THEOS" >> $GITHUB_ENV
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/roothide/theos/master/bin/install-theos)"
+          # Must use roothide's fork so the `roothide` package scheme is recognised.
+          # (The previous ubuntu workflow installed upstream theos, which does not
+          #  know the roothide scheme and silently produced a ROOTFUL arm64e package.)
+          git clone --recursive https://github.com/roothide/theos.git "$THEOS"
+          # System iOS SDKs (project min target is 14.4; any recent SDK works)
+          git clone --depth 1 https://github.com/theos/sdks.git "$THEOS/sdks"
 
-      - name: Get iOS 14.5 SDK
+      - name: Build package (roothide)
         run: |
-          mkdir -p "$THEOS/sdks"
-          if [ ! -d "$THEOS/sdks/iPhoneOS14.5.sdk" ]; then
-            git clone -n --depth 1 --filter=tree:0 https://github.com/theos/sdks.git /tmp/sdks
-            cd /tmp/sdks
-            git sparse-checkout set --no-cone iPhoneOS14.5.sdk
-            git checkout
-            cp -a iPhoneOS14.5.sdk "$THEOS/sdks/"
-          fi
-          ls "$THEOS/sdks"
+          make clean
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
 
-      - name: Build package
-        run: make clean package FINALPACKAGE=1 TARGET=iphone:clang:14.5:14.0 ADDITIONAL_CFLAGS=-fcommon
+      - name: Verify this is a roothide package (not rootful)
+        run: |
+          set -e
+          deb="$(ls packages/*.deb | head -1)"
+          echo "Built: $deb"
+          # rootful packages are labelled iphoneos-arm64e; roothide/rootless are iphoneos-arm64
+          case "$deb" in
+            *iphoneos-arm64e*)
+              echo "::error::Package built as ROOTFUL (arm64e). The roothide scheme did not apply — check that THEOS points at roothide/theos."
+              exit 1;;
+          esac
+          echo "OK: architecture looks like roothide (arm64)."
 
-      - name: Upload .deb
+      - name: List built packages
+        run: ls -lh packages/
+
+      - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: axon-deb
+          name: axon-roothide-deb
           path: packages/*.deb
+          if-no-files-found: error
