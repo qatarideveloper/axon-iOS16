@@ -40,8 +40,11 @@ jobs:
 
       - name: Build package (roothide)
         run: |
+          # Override TARGET so every subproject builds against the SDK we fetched
+          # (Makefiles otherwise pin iPhoneOS14.4.sdk / default to an ancient min).
           make clean
-          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 \
+            TARGET=iphone:clang:16.5:14.0
 
       - name: Verify this is a roothide package (not rootful)
         run: |
