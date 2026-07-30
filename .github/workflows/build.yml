@@ -16,7 +16,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          brew install ldid make xz
+          brew install ldid make xz dpkg
           echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Set up roothide Theos
@@ -46,17 +46,19 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 \
             TARGET=iphone:clang:16.5:14.0
 
-      - name: Inspect built package (scheme check)
+      - name: Inspect built package
         run: |
+          # Note: a correct roothide package IS iphoneos-arm64e with
+          # /Library/MobileSubstrate paths; roothide relocates them into the
+          # randomized jbroot at install time. (See roothide/theos
+          # vendor/mod/roothide/package/deb.mk)
           deb="$(ls packages/*.deb | head -1)"
           echo "Built: $deb"
           ls -lh packages/
-          work="$(mktemp -d)"
-          dpkg-deb -e "$deb" "$work/DEBIAN" 2>/dev/null || ar p "$deb" control.tar.* | tar -C "$work" -xf - 2>/dev/null || true
           echo "===== control ====="
-          cat "$work/DEBIAN/control" 2>/dev/null || cat "$work/control" 2>/dev/null || true
+          dpkg-deb -I "$deb"
           echo "===== data paths ====="
-          dpkg-deb -c "$deb" 2>/dev/null | awk '{print $6}' || true
+          dpkg-deb -c "$deb"
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
