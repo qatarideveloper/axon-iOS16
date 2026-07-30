@@ -140,7 +140,10 @@
     [[AXNManager sharedInstance] showNotificationRequestsForBundleIdentifier:cell.bundleIdentifier];
     self.showingLatestRequest = NO;
 
-    [[NSClassFromString(@"SBIdleTimerGlobalCoordinator") sharedInstance] resetIdleTimer];
+    // iOS 17: -[SBIdleTimerGlobalCoordinator resetIdleTimer] was removed and
+    // sending it throws (unrecognized selector) -> SpringBoard safe mode.
+    id idleCoordinator = [NSClassFromString(@"SBIdleTimerGlobalCoordinator") sharedInstance];
+    if ([idleCoordinator respondsToSelector:@selector(resetIdleTimer)]) [idleCoordinator resetIdleTimer];
     [[AXNManager sharedInstance] revealNotificationHistory:YES];
 
     if (self.collectionViewLayout.scrollDirection == UICollectionViewScrollDirectionVertical) {

@@ -227,10 +227,12 @@ void updateViewConfiguration() {
 
 %new
 -(void)revealNotificationHistory:(BOOL)revealed {
-  [self setDidPlayRevealHaptic:YES];
-  [self forceNotificationHistoryRevealed:revealed animated:NO];
-  [self setNotificationHistorySectionNeedsReload:YES];
-  [self _reloadNotificationHistorySectionIfNecessary];
+  // Guard every call: several of these SpringBoard selectors changed/were
+  // removed on iOS 17 and sending them throws -> SpringBoard safe mode.
+  if ([self respondsToSelector:@selector(setDidPlayRevealHaptic:)]) [self setDidPlayRevealHaptic:YES];
+  if ([self respondsToSelector:@selector(forceNotificationHistoryRevealed:animated:)]) [self forceNotificationHistoryRevealed:revealed animated:NO];
+  if ([self respondsToSelector:@selector(setNotificationHistorySectionNeedsReload:)]) [self setNotificationHistorySectionNeedsReload:YES];
+  if ([self respondsToSelector:@selector(_reloadNotificationHistorySectionIfNecessary)]) [self _reloadNotificationHistorySectionIfNecessary];
   if (!revealed && [self respondsToSelector:@selector(clearAllCoalescingControlsCells)]) [self clearAllCoalescingControlsCells];
 }
 
@@ -348,7 +350,7 @@ void updateViewConfiguration() {
 
 %new
 -(void)revealNotificationHistory:(BOOL)revealed {
-  [self revealNotificationHistory:revealed animated:true];
+  if ([self respondsToSelector:@selector(revealNotificationHistory:animated:)]) [self revealNotificationHistory:revealed animated:true];
 }
 
 %new
