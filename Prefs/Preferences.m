@@ -4,6 +4,12 @@
 #include <roothide.h>
 #include <Foundation/Foundation.h>
 
+// Axon's tweak reads this file directly (initWithContentsOfFile) and reloads on
+// the me.nepeta.axon/ReloadPrefs Darwin notification. If the pane writes via
+// cfprefsd, the file isn't flushed yet when the tweak re-reads it, so changes
+// don't apply. Read/write the same file directly, then post the notification.
+static NSString *const kAxonPlist = @"/var/mobile/Library/Preferences/me.nepeta.axon.plist";
+
 @implementation AXNPrefsListController
 @synthesize respringButton;
 
@@ -52,6 +58,29 @@
         _specifiers = [[self loadSpecifiersFromPlistName:@"Prefs" target:self] retain];
     }
     return _specifiers;
+}
+
+- (id)readPreferenceValue:(PSSpecifier *)specifier {
+    NSString *key = [specifier propertyForKey:@"key"];
+    if (!key) return nil;
+    NSDictionary *d = [NSDictionary dictionaryWithContentsOfFile:kAxonPlist];
+    id v = [d objectForKey:key];
+    return v ? v : [specifier propertyForKey:@"default"];
+}
+
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
+    NSString *key = [specifier propertyForKey:@"key"];
+    if (!key) return;
+    NSMutableDictionary *d = [NSMutableDictionary dictionaryWithContentsOfFile:kAxonPlist];
+    if (!d) d = [NSMutableDictionary dictionary];
+    if (value) [d setObject:value forKey:key]; else [d removeObjectForKey:key];
+    [d writeToFile:kAxonPlist atomically:YES];
+
+    NSString *notif = [specifier propertyForKey:@"PostNotification"];
+    if (notif) {
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+                                             (CFStringRef)notif, NULL, NULL, YES);
+    }
 }
 
 -(void)viewDidLoad {
